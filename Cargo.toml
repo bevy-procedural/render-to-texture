@@ -1,0 +1,80 @@
+[package]
+name = "render-to-texture"
+description = "Render to a texture using Bevy and optionally retrieve the contents in the Main World."
+version = "0.1.0"
+edition = "2021"
+categories = ["graphics", "rendering", "game-development", "simulation"]
+keywords = ["gamedev", "graphics", "bevy", "procedural", "render-to-texture"]
+homepage = "https://bevy-procedural.org/render-to-texture"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/bevy-procedural/render-to-texture"
+documentation = "https://docs.bevy-procedural.org/render-to-texture"
+rust-version = "1.76.0"
+
+[lib]
+name = "render_to_texture"
+path = "src/lib.rs"
+crate-type = ["rlib", "dylib"]
+
+[workspace]
+members = ["editor", "components"]
+
+[workspace.lints.clippy]
+type_complexity = "allow"
+doc_markdown = "warn"
+manual_let_else = "warn"
+undocumented_unsafe_blocks = "warn"
+redundant_else = "warn"
+match_same_arms = "warn"
+semicolon_if_nothing_returned = "warn"
+map_flatten = "warn"
+
+ptr_as_ptr = "warn"
+ptr_cast_constness = "warn"
+ref_as_ptr = "warn"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "warn"
+# missing_docs = "warn"
+
+[lints]
+workspace = true
+
+[dependencies]
+bevy = { version = "0.13.0", default-features = false, features = [
+    "basis-universal",
+] }
+bevy-inspector-egui = "0.23.2"
+procedural-meshes = { path = "../meshes" }
+hot-lib-reloader = "0.7.0"
+components = { path = "./components" }
+bevy_panorbit_camera = "0.14.0"
+futures-lite = "2.2.0"
+futures = "0.3.30"
+
+[features]
+default = []
+dynamic = ["components/dynamic", "bevy/file_watcher"]
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+doc-scrape-examples = true
+
+# Optional: Uncommenting the following improves compile times, but reduces the amount of debug info to 'line number tables only'
+# In most cases the gains are negligible, but if you are on macos and have slow compile times you should see significant gains.
+#[profile.dev]
+#debug = 1
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.gfx-backend-vulkan]
+opt-level = 3
+debug-assertions = false

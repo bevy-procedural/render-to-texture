@@ -1,0 +1,24 @@
+[package]
+name = "editor"
+description = "An Egui-based editor for the render-to-texture crate"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+bevy = { version = "0.13.0", default-features = false, features = [
+    "basis-universal",
+] }
+components = { path = "../components" }
+render-to-texture = { path = "../" }
+procedural-meshes = { path = "../../meshes" }
+bevy-inspector-egui = "0.23.2"
+hot-lib-reloader = "0.7.0"
+bevy_panorbit_camera = "0.14.0"
+
+[features]
+default = []
+reload = ["components/dynamic", "bevy/file_watcher"]
+
+[lints]
+workspace = true
