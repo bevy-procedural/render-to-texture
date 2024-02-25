@@ -25,7 +25,7 @@ pub enum ImageExportSystems {
     SetupImageExportFlush,
 }
 
-pub fn sync_images(mut render_world_data: ResMut<ExtractableImages>, mut world: ResMut<MainWorld>) {
+pub fn sync_images(render_world_data: Res<ExtractableImages>, mut world: ResMut<MainWorld>) {
     if render_world_data.raw.is_empty() {
         return;
     }

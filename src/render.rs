@@ -1,5 +1,5 @@
 use crate::{
-    compress::{compress_to_basis, compress_to_basis_raw},
+    compress::compress_to_basis_raw,
     gpu2cpu::{ExtractableImages, ImageExportBundle, ImageExportSource},
 };
 use bevy::{
@@ -84,6 +84,7 @@ pub struct RenderToTextureTasks {
 }
 
 impl RenderToTextureTasks {
+    /// should_compress: whether to use universal basis compression. This will also generate mipmaps.
     pub fn add(
         &mut self,
         name: String,
@@ -94,6 +95,7 @@ impl RenderToTextureTasks {
         images: &mut ResMut<Assets<Image>>,
     ) {
         let task = RenderToTextureTask::new(width, height, should_compress, commands, images);
+        assert!(self.tasks.get(&name).is_none(), "Task with name {} already exists", name);
         self.tasks.insert(name, task);
     }
 
@@ -119,18 +121,29 @@ impl RenderToTextureTasks {
             }
             task.stage = RenderToTextureTaskStage::ResultReceived;
             if task.should_compress {
-                let comp_img = Image::from_buffer(
-                    &task.data,
-                    ImageType::Format(bevy::render::texture::ImageFormat::Basis),
-                    self.supported_compressed_formats,
-                    true, 
-                    ImageSampler::linear(), // TODO: mipmap trilinear?
-                    RenderAssetUsages::default(),
-                )
-                .unwrap();
-                return Some(comp_img);
+                return Some(
+                    Image::from_buffer(
+                        &task.data,
+                        ImageType::Format(bevy::render::texture::ImageFormat::Basis),
+                        self.supported_compressed_formats,
+                        true,
+                        ImageSampler::linear(), // TODO: mipmap trilinear?
+                        RenderAssetUsages::default(),
+                    )
+                    .unwrap(),
+                );
             } else {
-                assert!(false, "Not implemented");
+                return Some(Image::new_fill(
+                    Extent3d {
+                        width: task.width,
+                        height: task.height,
+                        depth_or_array_layers: 1,
+                    },
+                    TextureDimension::D2,
+                    &task.data,
+                    TextureFormat::Rgba8UnormSrgb,
+                    RenderAssetUsages::default(),
+                ));
             }
         }
         return None;
@@ -152,7 +165,6 @@ pub fn update_render_to_texture(
     if extractable_images.raw.len() > 0 {
         for (_, task) in tasks.tasks.iter_mut() {
             if task.stage == RenderToTextureTaskStage::ReadyForRendering {
-                println!("Copy");
                 task.data = extractable_images.raw.clone(); // TODO: avoid cloning
 
                 let mut writer =

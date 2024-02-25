@@ -7,7 +7,6 @@ use bevy::{
     prelude::*,
     render::{
         extract_component::ExtractComponent,
-        extract_resource::ExtractResource,
         render_asset::RenderAssets,
         render_resource::{Maintain, MapMode},
         renderer::RenderDevice,
@@ -41,7 +40,6 @@ pub struct ExtractableImages {
     pub raw: Vec<u8>,
 }
 
-
 pub fn store_in_img(
     export_bundles: Query<(&Handle<ImageExportSource>, &ImageExportSettings)>,
     sources: Res<RenderAssets<ImageExportSource>>,
@@ -51,9 +49,8 @@ pub fn store_in_img(
 ) {
     // TODO: don't copy the image data if it hasn't changed
 
-    for (source_handle, settings) in &export_bundles {
+    for (source_handle, _) in &export_bundles {
         if let Some(gpu_source) = sources.get(source_handle) {
-           
             let mut image_bytes = {
                 let slice = gpu_source.buffer.slice(..);
                 {

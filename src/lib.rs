@@ -1,8 +1,10 @@
+#![allow(dead_code)]
+
 use bevy::prelude::*;
 pub use render::{create_render_texture, RenderToTextureTasks};
+mod compress;
 mod gpu2cpu;
 mod render;
-mod compress;
 
 pub struct RenderToTexturePlugin;
 

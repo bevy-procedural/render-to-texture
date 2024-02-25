@@ -45,12 +45,15 @@ fn wait_for_texture(
                 commands.spawn((PbrBundle {
                     mesh: m.clone(),
                     material: mm.clone(),
-                    transform: Transform::from_translation(Vec3::new(x as f32 * 2.0, 0.0, z as f32 * 2.0)),
+                    transform: Transform::from_translation(Vec3::new(
+                        x as f32 * 2.0,
+                        0.0,
+                        z as f32 * 2.0,
+                    )),
                     ..default()
                 },));
             }
         }
-       
     }
 }
 
