@@ -49,6 +49,7 @@ pub fn store_in_img(
 ) {
     // TODO: don't copy the image data if it hasn't changed
 
+    let mut copied = false;
     for (source_handle, _) in &export_bundles {
         if let Some(gpu_source) = sources.get(source_handle) {
             let mut image_bytes = {
@@ -78,7 +79,11 @@ pub fn store_in_img(
                 image_bytes = unpadded_bytes;
             }
             if extractable_image.raw != image_bytes {
+                assert!(copied == false, "Image data was copied twice");
                 extractable_image.raw = image_bytes.clone();
+                println!("Image data copied");
+                copied = true;
+                
                 /*let gpu_image = gpu_images.get_mut(&gpu_source.source_handle).unwrap();
                 let width = gpu_image.size.x as u32;
                 let height = gpu_image.size.y as u32;

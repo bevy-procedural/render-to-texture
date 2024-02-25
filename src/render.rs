@@ -35,6 +35,7 @@ pub struct RenderToTextureTask {
     camera: Option<Entity>,
     layer: u8,
     is_srgb: bool,
+    bundle: Option<Entity>,
     data: Vec<u8>,
 }
 
@@ -83,6 +84,9 @@ pub struct RenderToTextureTasks {
     supported_compressed_formats: CompressedImageFormats,
 }
 
+#[derive(Default, Component, Clone, Reflect)]
+pub struct TaskResource(pub String);
+
 impl RenderToTextureTasks {
     /// should_compress: whether to use universal basis compression. This will also generate mipmaps.
     pub fn add(
@@ -95,7 +99,11 @@ impl RenderToTextureTasks {
         images: &mut ResMut<Assets<Image>>,
     ) {
         let task = RenderToTextureTask::new(width, height, should_compress, commands, images);
-        assert!(self.tasks.get(&name).is_none(), "Task with name {} already exists", name);
+        assert!(
+            self.tasks.get(&name).is_none(),
+            "Task with name {} already exists",
+            name
+        );
         self.tasks.insert(name, task);
     }
 
@@ -115,6 +123,8 @@ impl RenderToTextureTasks {
     }
 
     pub fn image(&mut self, name: &str) -> Option<Image> {
+        // TODO: Delete the image when not in use anymore
+
         if let Some(task) = self.tasks.get_mut(name) {
             if task.stage != RenderToTextureTaskStage::ReadyForReading {
                 return None;
@@ -191,6 +201,7 @@ pub fn update_render_to_texture(
             RenderToTextureTaskStage::ReadyForRendering => {}
             RenderToTextureTaskStage::RenderedResultCopiedBack => {
                 commands.entity(task.camera.unwrap()).despawn_recursive();
+                commands.entity(task.bundle.unwrap()).despawn_recursive();
                 // commands.remove(task.target);
                 if task.should_compress {
                     // TODO: do this in a separate thread / TaskPool
@@ -216,12 +227,12 @@ pub fn update_render_to_texture(
                     cam.is_active = true;
                     task.stage = RenderToTextureTaskStage::ReadyForRendering;
 
-                    commands.spawn(ImageExportBundle {
+                    task.bundle = Some(commands.spawn(ImageExportBundle {
                         source: image_exports.add(ImageExportSource {
                             image: task.target.clone(),
                         }),
                         settings: crate::gpu2cpu::ImageExportSettings::default(),
-                    });
+                    }).id());
                     started_rendering = true;
                 }
             }
@@ -248,6 +259,8 @@ pub fn create_render_texture(
     if direct_render {
         usage |= TextureUsages::TEXTURE_BINDING;
     }
+
+    // TODO: Delete the image when not in use anymore
 
     // This is the texture that will be rendered to.
     let mut image = Image {

@@ -32,8 +32,11 @@ pub fn sync_images(render_world_data: Res<ExtractableImages>, mut world: ResMut<
     let mut main_world_data = world.get_resource_mut::<ExtractableImages>().unwrap();
 
     if !main_world_data.raw.is_empty() {
-        return;
+       // return;
     }
+
+    // TODO: avoid copying too often
+
     main_world_data.raw = render_world_data.raw.clone();
 
     // TODO: clear the data after it's been copied
