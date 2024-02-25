@@ -1,6 +1,6 @@
 # Bevy Procedural: Render to Texture
 
-Render to a texture using Bevy and optionally retrieve the contents in the Main World.
+Render to a texture using Bevy and optionally retrieve the contents in the Main World. See "examples" for usage.
 
 Run the editor example using `cargo watch -w editor/src -w src -x "run -p editor"`.
 

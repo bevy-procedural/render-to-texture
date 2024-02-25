@@ -46,7 +46,7 @@ bevy = { version = "0.13.0", default-features = false, features = [
     "basis-universal",
     "bevy_render",
     "bevy_asset",
-    "bevy_core_pipeline"
+    "bevy_core_pipeline",
 ] }
 futures-lite = "2.2.0"
 futures = "0.3.30"
@@ -54,9 +54,17 @@ basis-universal = "0.3.1"
 image = "0.24.9"
 
 [[example]]
-name = "simple"
-path = "examples/simple.rs"
+name = "compressed"
+path = "examples/compressed.rs"
 doc-scrape-examples = true
+required-features = ["bevy/bevy_sprite", "bevy/bevy_pbr", "bevy/bevy_winit", "bevy/tonemapping_luts"]
+
+[[example]]
+name = "continuous"
+path = "examples/continuous.rs"
+doc-scrape-examples = true
+required-features = ["bevy/bevy_sprite", "bevy/bevy_pbr", "bevy/bevy_winit", "bevy/tonemapping_luts"]
+
 
 # Optional: Uncommenting the following improves compile times, but reduces the amount of debug info to 'line number tables only'
 # In most cases the gains are negligible, but if you are on macos and have slow compile times you should see significant gains.
