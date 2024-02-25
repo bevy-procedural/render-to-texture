@@ -6,8 +6,8 @@ use bevy::{
     render::{
         camera::CameraUpdateSystem, extract_component::ExtractComponentPlugin,
         extract_resource::ExtractResourcePlugin, graph::CameraDriverLabel,
-        render_asset::RenderAssetPlugin, render_graph::RenderGraph, Extract, Render, RenderApp,
-        RenderSet,
+        render_asset::RenderAssetPlugin, render_graph::RenderGraph, Extract, MainWorld, Render,
+        RenderApp, RenderSet,
     },
 };
 use fetch::store_in_img;
@@ -33,23 +33,12 @@ fn setup(mut commands: Commands) {
 }
 
 fn check_vec_len(extracted: Res<ExtractableImages>) {
-    //   println!("Extracted image data: {:?}", extracted.0);
+    println!("Extracted image data: {:?}", extracted.raw.len());
 }
 
-pub fn sync_images2(
-    main_world: Extract<Res<ExtractableImages>>,
-    render_world: Res<ExtractableImages>,
-) {
-    // mut extractable_image: ResMut<ExtractableImages>
-    // app_world: &mut World,
-    /*let mut images = app_world.resource_mut::<ExtractableImages>();
-    println!("{} ", images.raw.len());*/
-
-    //main_world.raw = render_world.raw.clone();
-
-    println!("{} {}", main_world.raw.len(), render_world.raw.len());
-
-    //let render_app = app.sub_app_mut(RenderApp);
+pub fn sync_images2(render_world: Res<ExtractableImages>, mut world: ResMut<MainWorld>) {
+    let mut images = world.get_resource_mut::<ExtractableImages>().unwrap();
+    images.raw = render_world.raw.clone();
 }
 
 impl Plugin for ImageExportPlugin {
@@ -74,8 +63,7 @@ impl Plugin for ImageExportPlugin {
             ExtractComponentPlugin::<ImageExportSettings>::default(),
         ))
         .add_systems(PostUpdate, apply_deferred.in_set(SetupImageExportFlush))
-        //.add_systems(PreUpdate, check_vec_len)
-        ;
+        .add_systems(PreUpdate, check_vec_len);
 
         let render_app = app.sub_app_mut(RenderApp);
 
