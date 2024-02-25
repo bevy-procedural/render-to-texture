@@ -112,7 +112,7 @@ fn create_random_texture(
         "default".to_string(),
         512,
         512,
-        rng.gen(),
+        true,
         commands,
         images,
         true,

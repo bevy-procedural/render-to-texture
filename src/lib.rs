@@ -13,6 +13,7 @@ impl Plugin for RenderToTexturePlugin {
         app //.register_type::<RenderToTextureTasks>()
             .insert_resource(RenderToTextureTasks::default())
             .add_plugins(gpu2cpu::ImageExportPlugin::default())
+            .add_systems(Startup, render::setup_supported_formats)
             .add_systems(PreUpdate, render::update_render_to_texture);
     }
 }

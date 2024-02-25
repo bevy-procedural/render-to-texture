@@ -12,6 +12,7 @@ use bevy::{
         texture::{CompressedImageFormats, ImageSampler, ImageType},
         view::RenderLayers,
     },
+    tasks,
     utils::HashMap,
 };
 
@@ -107,6 +108,7 @@ impl RenderToTextureTask {
 #[derive(Default, Resource, Clone)]
 pub struct RenderToTextureTasks {
     tasks: HashMap<String, RenderToTextureTask>,
+    // TODO: populate this!
     supported_compressed_formats: CompressedImageFormats,
 }
 
@@ -199,6 +201,13 @@ impl RenderToTextureTasks {
         }
         return None;
     }
+}
+
+pub fn setup_supported_formats(
+    device: Res<bevy::render::renderer::RenderDevice>,
+    mut tasks: ResMut<RenderToTextureTasks>,
+) {
+    tasks.supported_compressed_formats = CompressedImageFormats::from_features(device.features());
 }
 
 pub fn update_render_to_texture(

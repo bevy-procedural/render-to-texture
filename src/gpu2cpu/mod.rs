@@ -1,5 +1,7 @@
 // based on https://github.com/paulkre/bevy_image_export/blob/main/src/node.rs
 
+// TODO: move the ImageExport-stuff to a separate crate
+
 use bevy::{
     prelude::*,
     render::{
