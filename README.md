@@ -2,7 +2,7 @@
 
 Render to a texture using Bevy and optionally retrieve the contents in the Main World.
 
-Run the editor example using `cargo watch -w editor/src -w src -x "run -p editor"` or `cargo runcc -c runcc-windows.yml`.
+Run the editor example using `cargo watch -w editor/src -w src -x "run -p editor"`.
 
 ## WARNING: This repository is practically empty
 

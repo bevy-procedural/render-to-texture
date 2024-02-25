@@ -44,7 +44,7 @@ impl RenderAsset for ImageExportSource {
         let size = gpu_image.texture.size();
         let format = &gpu_image.texture_format;
         let bytes_per_row =
-            (size.width / format.block_dimensions().0) * format.block_size(None).unwrap();
+            (size.width / format.block_dimensions().0) * format.block_copy_size(None).unwrap();
         let padded_bytes_per_row =
             RenderDevice::align_copy_bytes_per_row(bytes_per_row as usize) as u32;
 
@@ -57,7 +57,7 @@ impl RenderAsset for ImageExportSource {
                 usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
                 mapped_at_creation: false,
             }),
-            source_handle: self.0.clone(),
+            source_handle: self.0,
             source_size,
             bytes_per_row,
             padded_bytes_per_row,

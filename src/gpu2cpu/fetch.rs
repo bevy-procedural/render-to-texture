@@ -1,7 +1,7 @@
 // based on https://github.com/paulkre/bevy_image_export/blob/main/src/node.rs
 
-use super::source::ImageExportSource;
 //use crate::compress::compress_to_basis_raw;
+use super::source::ImageExportSource;
 use bevy::{
     ecs::query::WorldQuery,
     prelude::*,
