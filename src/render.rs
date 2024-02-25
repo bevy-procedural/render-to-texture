@@ -251,9 +251,9 @@ pub fn update_render_to_texture(
                 // commands.remove(task.target);
                 if task.should_compress {
                     // TODO: do this in a separate thread / TaskPool
-                    // let prev_len = task.data.len();
+                    let _prev_len = task.data.len();
                     task.data = compress_to_basis_raw(&task.data, task.size(), task.is_srgb);
-                    // println!("{} -> {} Kb", prev_len / 1024, task.data.len() / 1024);
+                    // println!("{} -> {} Kb", _prev_len / 1024, task.data.len() / 1024);
                     task.stage = RenderToTextureTaskStage::ReadyForReading;
                 } else {
                     task.stage = RenderToTextureTaskStage::ReadyForReading;
