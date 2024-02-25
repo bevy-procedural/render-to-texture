@@ -4,7 +4,9 @@ Render to a texture using Bevy and optionally retrieve the contents in the Main 
 
 Run the editor example using `cargo watch -w editor/src -w src -x "run -p editor"`.
 
-## WARNING: This repository is practically empty
+## WARNING
+
+This repository is still in an early stage and the API is subject to change. Also, expected tons of bugs and missing features.
 
 We highly encourage contributions to enrich the project!
 

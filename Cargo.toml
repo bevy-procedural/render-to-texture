@@ -1,7 +1,7 @@
 [package]
 name = "render-to-texture"
 description = "Render to a texture using Bevy and optionally retrieve the contents in the Main World."
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 categories = ["graphics", "rendering", "game-development", "simulation"]
 keywords = ["gamedev", "graphics", "bevy", "procedural", "render-to-texture"]

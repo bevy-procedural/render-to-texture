@@ -35,9 +35,10 @@ pub struct ImageExportBundle {
     pub settings: ImageExportSettings,
 }
 
-#[derive(Resource, Clone, Deref, Default, Reflect)]
+#[derive(Resource, Clone, Default, Reflect)]
 pub struct ExtractableImages {
     pub raw: Vec<u8>,
+    pub refresh: bool,
 }
 
 pub fn store_in_img(
@@ -45,7 +46,7 @@ pub fn store_in_img(
     sources: Res<RenderAssets<ImageExportSource>>,
     render_device: Res<RenderDevice>,
     mut extractable_image: ResMut<ExtractableImages>,
-    //mut gpu_images: ResMut<RenderAssets<Image>>,
+    mut gpu_images: ResMut<RenderAssets<Image>>,
 ) {
     // TODO: don't copy the image data if it hasn't changed
 
@@ -78,43 +79,27 @@ pub fn store_in_img(
                 }
                 image_bytes = unpadded_bytes;
             }
-            if extractable_image.raw != image_bytes {
+
+            if extractable_image.refresh && extractable_image.raw != image_bytes {
                 assert!(copied == false, "Image data was copied twice");
                 extractable_image.raw = image_bytes.clone();
                 println!("Image data copied");
                 copied = true;
-                
-                /*let gpu_image = gpu_images.get_mut(&gpu_source.source_handle).unwrap();
+
+                let gpu_image = gpu_images.get_mut(&gpu_source.source_handle).unwrap();
                 let width = gpu_image.size.x as u32;
                 let height = gpu_image.size.y as u32;
-
-                std::thread::spawn(move || {
-                    println!("Saving {}  {}", image_bytes.len(), width * height);
-
-                    let compressed_basis_data =
-                        compress_to_basis_raw(&image_bytes, UVec2::new(width, height), true);
-
-                    /*
-                    /*let mut file = std::fs::OpenOptions::new()
-                        .create(true)
-                        .write(true)
-                        .open("test.basis")
-                        .unwrap();
-                    use std::io::Write;
-                    file.write_all(&compressed_basis_data).unwrap();*/
-
-                    let mut writer =
-                        std::io::BufWriter::new(std::fs::File::create("test.png").unwrap());
-                    image::write_buffer_with_format(
-                        &mut writer,
-                        &image_bytes,
-                        height,
-                        width,
-                        image::ColorType::Rgba8,
-                        image::ImageFormat::Png,
-                    )
-                    .unwrap();*/
-                });*/
+                let mut writer =
+                    std::io::BufWriter::new(std::fs::File::create("test.png").unwrap());
+                image::write_buffer_with_format(
+                    &mut writer,
+                    &image_bytes,
+                    height,
+                    width,
+                    image::ColorType::Rgba8,
+                    image::ImageFormat::Png,
+                )
+                .unwrap();
             }
         }
     }

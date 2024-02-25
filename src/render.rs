@@ -23,6 +23,7 @@ pub enum RenderToTextureTaskStage {
     RenderedResultCopiedBack,
     ReadyForReading,
     ResultReceived,
+    TaskDone,
 }
 
 #[derive(Default, Reflect, Clone)]
@@ -37,6 +38,7 @@ pub struct RenderToTextureTask {
     is_srgb: bool,
     bundle: Option<Entity>,
     data: Vec<u8>,
+    allow_changes: bool,
 }
 
 impl RenderToTextureTask {
@@ -46,6 +48,7 @@ impl RenderToTextureTask {
         should_compress: bool,
         commands: &mut Commands,
         images: &mut ResMut<Assets<Image>>,
+        allow_changes: bool,
     ) -> Self {
         // TODO: always 1 is not sufficient
         let layer = 1;
@@ -59,6 +62,7 @@ impl RenderToTextureTask {
             target,
             is_srgb: true, // TODO
             should_compress,
+            allow_changes,
             camera: Some(camera_id),
             stage: RenderToTextureTaskStage::Initialized,
             ..Default::default()
@@ -75,6 +79,28 @@ impl RenderToTextureTask {
 
     pub fn ready(&self) -> bool {
         self.stage == RenderToTextureTaskStage::ReadyForReading
+    }
+
+    pub fn free(&mut self, commands: &mut Commands) {
+        assert!(
+            self.stage == RenderToTextureTaskStage::TaskDone
+                || self.stage == RenderToTextureTaskStage::ReadyForReading
+                || self.stage == RenderToTextureTaskStage::ResultReceived,
+            "Task not done"
+        );
+        println!("Removing task");
+        if let Some(c) = self.camera {
+            commands.entity(c).despawn_recursive();
+            self.camera = None;
+        }
+        if let Some(b) = self.bundle {
+            commands.entity(b).despawn_recursive();
+            self.bundle = None;
+        }
+    }
+
+    pub fn rerender(&mut self) {
+        self.stage = RenderToTextureTaskStage::ReadyForRendering;
     }
 }
 
@@ -97,8 +123,16 @@ impl RenderToTextureTasks {
         should_compress: bool,
         commands: &mut Commands,
         images: &mut ResMut<Assets<Image>>,
+        allow_changes: bool,
     ) {
-        let task = RenderToTextureTask::new(width, height, should_compress, commands, images);
+        let task = RenderToTextureTask::new(
+            width,
+            height,
+            should_compress,
+            commands,
+            images,
+            allow_changes,
+        );
         assert!(
             self.tasks.get(&name).is_none(),
             "Task with name {} already exists",
@@ -111,18 +145,22 @@ impl RenderToTextureTasks {
         self.tasks.get(name)
     }
 
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut RenderToTextureTask> {
+        self.tasks.get_mut(name)
+    }
+
     pub fn read(&mut self, name: &str) -> Option<Vec<u8>> {
         if let Some(task) = self.tasks.get_mut(name) {
             if task.stage != RenderToTextureTaskStage::ReadyForReading {
                 return None;
             }
-            task.stage = RenderToTextureTaskStage::ResultReceived;
+            task.stage = RenderToTextureTaskStage::TaskDone;
             return Some(task.data.clone());
         }
         return None;
     }
 
-    pub fn image(&mut self, name: &str) -> Option<Image> {
+    pub fn image(&mut self, name: &str, finish: bool) -> Option<Image> {
         // TODO: Delete the image when not in use anymore
 
         if let Some(task) = self.tasks.get_mut(name) {
@@ -130,6 +168,9 @@ impl RenderToTextureTasks {
                 return None;
             }
             task.stage = RenderToTextureTaskStage::ResultReceived;
+            if finish {
+                task.stage = RenderToTextureTaskStage::TaskDone;
+            }
             if task.should_compress {
                 return Some(
                     Image::from_buffer(
@@ -165,17 +206,20 @@ pub fn update_render_to_texture(
     mut cameras: Query<&mut Camera>,
     mut commands: Commands,
     mut image_exports: ResMut<Assets<ImageExportSource>>,
-    extractable_images: Res<ExtractableImages>,
+    mut extractable_images: ResMut<ExtractableImages>,
+    // mut settings: Query<&mut ImageExportSettings>,
 ) {
     // remove finished tasks
     tasks
         .tasks
-        .retain(|_, task| task.stage != RenderToTextureTaskStage::ResultReceived);
+        .retain(|_, task| task.stage != RenderToTextureTaskStage::TaskDone);
 
     if extractable_images.raw.len() > 0 {
         for (_, task) in tasks.tasks.iter_mut() {
             if task.stage == RenderToTextureTaskStage::ReadyForRendering {
                 task.data = extractable_images.raw.clone(); // TODO: avoid cloning
+
+                println!("Image data received");
 
                 let mut writer =
                     std::io::BufWriter::new(std::fs::File::create("test.png").unwrap());
@@ -189,10 +233,14 @@ pub fn update_render_to_texture(
                 )
                 .unwrap();
 
-                // TODO: extractable_images.raw.clear();
+                extractable_images.raw.clear();
                 task.stage = RenderToTextureTaskStage::RenderedResultCopiedBack;
             }
         }
+
+        // TODO: For some reason, the renderer always sends the image data twice... so we have to clear it here
+        // clear anyway
+        extractable_images.raw.clear();
     }
 
     let mut started_rendering = false;
@@ -200,8 +248,6 @@ pub fn update_render_to_texture(
         match task.stage {
             RenderToTextureTaskStage::ReadyForRendering => {}
             RenderToTextureTaskStage::RenderedResultCopiedBack => {
-                commands.entity(task.camera.unwrap()).despawn_recursive();
-                commands.entity(task.bundle.unwrap()).despawn_recursive();
                 // commands.remove(task.target);
                 if task.should_compress {
                     // TODO: do this in a separate thread / TaskPool
@@ -216,28 +262,43 @@ pub fn update_render_to_texture(
                 } else {
                     task.stage = RenderToTextureTaskStage::ReadyForReading;
                 }
+
+                if !task.allow_changes {
+                    task.free(&mut commands);
+                }
+
+                cameras.get_mut(task.camera.unwrap()).unwrap().is_active = false;
             }
             RenderToTextureTaskStage::Initialized => {
-                if let Ok(mut cam) = cameras.get_mut(task.camera.unwrap()) {
-                    assert!(
-                        !started_rendering,
-                        "Currently only one render to texture at a time is supported"
-                    );
+                let mut cam = cameras.get_mut(task.camera.unwrap()).unwrap();
+                assert!(
+                    !started_rendering,
+                    "Currently only one render to texture at a time is supported"
+                );
 
-                    cam.is_active = true;
-                    task.stage = RenderToTextureTaskStage::ReadyForRendering;
+                cam.is_active = true;
+                task.stage = RenderToTextureTaskStage::ReadyForRendering;
 
-                    task.bundle = Some(commands.spawn(ImageExportBundle {
-                        source: image_exports.add(ImageExportSource {
-                            image: task.target.clone(),
-                        }),
-                        settings: crate::gpu2cpu::ImageExportSettings::default(),
-                    }).id());
-                    started_rendering = true;
-                }
+                task.bundle = Some(
+                    commands
+                        .spawn(ImageExportBundle {
+                            source: image_exports.add(ImageExportSource {
+                                image: task.target.clone(),
+                            }),
+                            settings: crate::gpu2cpu::ImageExportSettings::default(),
+                        })
+                        .id(),
+                );
+                started_rendering = true;
             }
             _ => {}
         };
+
+        if task.stage == RenderToTextureTaskStage::ReadyForRendering {
+            cameras.get_mut(task.camera.unwrap()).unwrap().is_active = true;
+            //settings.get_mut(task.bundle.unwrap()).unwrap().remaining = 1;
+            extractable_images.refresh = true;
+        }
     }
 }
 

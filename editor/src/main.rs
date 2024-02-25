@@ -12,6 +12,9 @@ use std::f32::consts::PI;
 #[derive(Component)]
 struct TemporaryResource;
 
+#[derive(Component)]
+struct RenderedEntity(Handle<Mesh>);
+
 pub fn main() {
     let mut app = App::new();
 
@@ -41,7 +44,7 @@ fn wait_for_texture(
     mut materials: ResMut<Assets<StandardMaterial>>,
     removeables: Query<Entity, With<TemporaryResource>>,
 ) {
-    if let Some(image) = render_to_texture_tasks.image("default") {
+    if let Some(image) = render_to_texture_tasks.image("default", false) {
         for entity in removeables.iter() {
             commands.entity(entity).despawn();
         }
@@ -73,21 +76,26 @@ fn wait_for_texture(
 }
 
 fn keyboard_input(
-    mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
     keys: Res<ButtonInput<KeyCode>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials2: ResMut<Assets<ColorMaterial>>,
+    mut rendered: Query<&RenderedEntity>,
     mut render_to_texture_tasks: ResMut<RenderToTextureTasks>,
 ) {
     if keys.just_pressed(KeyCode::Space) {
-        create_random_texture(
-            &mut commands,
-            &mut images,
-            &mut meshes,
-            &mut materials2,
-            &mut render_to_texture_tasks,
-        );
+        create_random_mesh(&mut meshes, &mut rendered);
+        render_to_texture_tasks
+            .get_mut("default")
+            .unwrap()
+            .rerender();
+    }
+}
+
+fn create_random_mesh(meshes: &mut ResMut<Assets<Mesh>>, rendered: &mut Query<&RenderedEntity>) {
+    let mut rng = rand::thread_rng();
+    let shape = RegularPolygon::new(rng.gen::<f32>() * 300.0, rng.gen::<usize>() % 10 + 3);
+    for handle in rendered.iter() {
+        let m = meshes.get_mut(handle.0.clone()).unwrap();
+        *m = Mesh::from(shape.clone());
     }
 }
 
@@ -100,20 +108,29 @@ fn create_random_texture(
 ) {
     let mut rng = rand::thread_rng();
 
-    render_to_texture_tasks.add("default".to_string(), 512, 512, rng.gen(), commands, images);
+    render_to_texture_tasks.add(
+        "default".to_string(),
+        512,
+        512,
+        rng.gen(),
+        commands,
+        images,
+        true,
+    );
 
+    let mesh = meshes.add(RegularPolygon::new(
+        rng.gen::<f32>() * 300.0,
+        rng.gen::<usize>() % 10 + 3,
+    ));
     commands.spawn((
         MaterialMesh2dBundle {
-            mesh: Mesh2dHandle(meshes.add(RegularPolygon::new(
-                rng.gen::<f32>() * 300.0,
-                rng.gen::<usize>() % 10 + 3,
-            ))),
+            mesh: Mesh2dHandle(mesh.clone()),
             material: materials.add(Color::RED),
             transform: Transform::from_xyz(-0.6, 0.7, 1.4),
             ..default()
         },
         RenderLayers::layer(1),
-        TemporaryResource,
+        RenderedEntity(mesh),
     ));
 }
 
@@ -133,12 +150,13 @@ fn setup_scene(
         &mut render_to_texture_tasks,
     );
 
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(Cylinder::default())),
+    let mesh = meshes.add(Mesh::from(Cylinder::default()));
+    commands.spawn((PbrBundle {
+        mesh,
         material: materials.add(StandardMaterial { ..default() }),
         transform: Transform::from_xyz(-0.6, 0.7, 1.4),
         ..default()
-    });
+    },));
 
     commands.insert_resource(AmbientLight::default());
     commands.spawn(DirectionalLightBundle {

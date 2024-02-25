@@ -1,5 +1,4 @@
 /// Render only once to a compressed texture with mipmaps.
-
 use bevy::{
     prelude::*,
     render::view::RenderLayers,
@@ -8,7 +7,8 @@ use bevy::{
 use render_to_texture::*;
 
 pub fn main() {
-     App::new().add_plugins((DefaultPlugins, RenderToTexturePlugin))
+    App::new()
+        .add_plugins((DefaultPlugins, RenderToTexturePlugin))
         .add_systems(Startup, setup_scene)
         .add_systems(Update, (wait_for_texture, bevy::window::close_on_esc))
         .run();
@@ -21,7 +21,7 @@ fn wait_for_texture(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    if let Some(image) = render_to_texture_tasks.image("default") {
+    if let Some(image) = render_to_texture_tasks.image("default", true) {
         commands.spawn((MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(Plane3d::new(Vec3::new(0.0, 1.0, 0.0)))),
             material: materials.add(StandardMaterial {
@@ -47,6 +47,7 @@ fn setup_scene(
         true,
         &mut commands,
         &mut images,
+        false,
     );
 
     commands.spawn((
@@ -59,10 +60,8 @@ fn setup_scene(
         RenderLayers::layer(1),
     ));
 
-    commands.spawn(
-        Camera3dBundle {
-            transform: Transform::from_xyz(2.0, 3.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-    );
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(2.0, 3.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
+        ..default()
+    });
 }

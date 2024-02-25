@@ -25,22 +25,26 @@ pub enum ImageExportSystems {
     SetupImageExportFlush,
 }
 
-pub fn sync_images(render_world_data: Res<ExtractableImages>, mut world: ResMut<MainWorld>) {
+pub fn sync_images(mut render_world_data: ResMut<ExtractableImages>, mut world: ResMut<MainWorld>) {
+
+
+    let mut main_world_data = world.get_resource_mut::<ExtractableImages>().unwrap();
+    render_world_data.refresh = main_world_data.refresh;
+
     if render_world_data.raw.is_empty() {
         return;
     }
-    let mut main_world_data = world.get_resource_mut::<ExtractableImages>().unwrap();
 
+    // wait for the main world to eat the previous changes
     if !main_world_data.raw.is_empty() {
-       // return;
+        return;
     }
 
-    // TODO: avoid copying too often
+    println!("sync_images");
 
     main_world_data.raw = render_world_data.raw.clone();
-
-    // TODO: clear the data after it's been copied
-    // render_world_data.raw.clear();
+    render_world_data.raw.clear();
+    main_world_data.refresh = false;
 }
 
 impl Plugin for ImageExportPlugin {
