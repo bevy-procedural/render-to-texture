@@ -221,18 +221,6 @@ pub fn update_render_to_texture(
 
                 //println!("Image data received");
 
-                let mut writer =
-                    std::io::BufWriter::new(std::fs::File::create("test.png").unwrap());
-                image::write_buffer_with_format(
-                    &mut writer,
-                    &task.data,
-                    task.width,
-                    task.height,
-                    image::ColorType::Rgba8,
-                    image::ImageFormat::Png,
-                )
-                .unwrap();
-
                 extractable_images.raw.clear();
                 task.stage = RenderToTextureTaskStage::RenderedResultCopiedBack;
             }
