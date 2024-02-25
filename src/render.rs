@@ -1,109 +1,220 @@
-use crate::gpu2cpu::{ImageExportBundle, ImageExportSource};
+use crate::{
+    compress::{compress_to_basis, compress_to_basis_raw},
+    gpu2cpu::{ExtractableImages, ImageExportBundle, ImageExportSource},
+};
 use bevy::{
     prelude::*,
     render::{
+        render_asset::RenderAssetUsages,
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
+        texture::{CompressedImageFormats, ImageSampler, ImageType},
         view::RenderLayers,
     },
+    utils::HashMap,
 };
 
 #[derive(Default, Reflect, Clone, PartialEq)]
 pub enum RenderToTextureTaskStage {
     #[default]
-    Initial,
-    Ready,
-    Rendering,
-    Done,
+    Initialized,
+    ReadyForRendering,
+    RenderedResultCopiedBack,
+    ReadyForReading,
+    ResultReceived,
 }
 
 #[derive(Default, Reflect, Clone)]
 pub struct RenderToTextureTask {
-    pub width: u32,
-    pub height: u32,
-    pub target: Handle<Image>,
+    width: u32,
+    height: u32,
+    should_compress: bool,
+    target: Handle<Image>,
     pub stage: RenderToTextureTaskStage,
     camera: Option<Entity>,
     layer: u8,
+    is_srgb: bool,
+    data: Vec<u8>,
 }
 
 impl RenderToTextureTask {
-    pub fn create(
+    pub fn new(
         width: u32,
         height: u32,
+        should_compress: bool,
         commands: &mut Commands,
         images: &mut ResMut<Assets<Image>>,
-    ) -> (Self, RenderLayers) {
+    ) -> Self {
         // TODO: always 1 is not sufficient
         let layer = 1;
-        let (target, first_pass_layer, camera_id) =
-            create_render_texture(width, height, commands, images, layer);
+        let (target, camera_id) =
+            create_render_texture(width, height, commands, images, layer, false);
 
-        (
-            Self {
-                width,
-                height,
-                layer,
-                target,
-                camera: Some(camera_id),
-                stage: RenderToTextureTaskStage::Initial,
-                ..Default::default()
-            },
-            first_pass_layer,
-        )
+        return Self {
+            width,
+            height,
+            layer,
+            target,
+            is_srgb: true, // TODO
+            should_compress,
+            camera: Some(camera_id),
+            stage: RenderToTextureTaskStage::Initialized,
+            ..Default::default()
+        };
+    }
+
+    pub fn get_layer(&self) -> RenderLayers {
+        RenderLayers::layer(self.layer)
+    }
+
+    pub fn size(&self) -> UVec2 {
+        UVec2::new(self.width, self.height)
+    }
+
+    pub fn ready(&self) -> bool {
+        self.stage == RenderToTextureTaskStage::ReadyForReading
     }
 }
 
-#[derive(Default, Resource, Reflect, Clone)]
+#[derive(Default, Resource, Clone)]
 pub struct RenderToTextureTasks {
-    pub tasks: Vec<RenderToTextureTask>,
+    tasks: HashMap<String, RenderToTextureTask>,
+    supported_compressed_formats: CompressedImageFormats,
 }
 
 impl RenderToTextureTasks {
     pub fn add(
         &mut self,
+        name: String,
         width: u32,
         height: u32,
+        should_compress: bool,
         commands: &mut Commands,
         images: &mut ResMut<Assets<Image>>,
-    ) -> RenderLayers {
-        let (task, layer) = RenderToTextureTask::create(width, height, commands, images);
-        self.tasks.push(task);
-        return layer;
+    ) {
+        let task = RenderToTextureTask::new(width, height, should_compress, commands, images);
+        self.tasks.insert(name, task);
+    }
+
+    pub fn get(&self, name: &str) -> Option<&RenderToTextureTask> {
+        self.tasks.get(name)
+    }
+
+    pub fn read(&mut self, name: &str) -> Option<Vec<u8>> {
+        if let Some(task) = self.tasks.get_mut(name) {
+            if task.stage != RenderToTextureTaskStage::ReadyForReading {
+                return None;
+            }
+            task.stage = RenderToTextureTaskStage::ResultReceived;
+            return Some(task.data.clone());
+        }
+        return None;
+    }
+
+    pub fn image(&mut self, name: &str) -> Option<Image> {
+        if let Some(task) = self.tasks.get_mut(name) {
+            if task.stage != RenderToTextureTaskStage::ReadyForReading {
+                return None;
+            }
+            task.stage = RenderToTextureTaskStage::ResultReceived;
+            if task.should_compress {
+                let comp_img = Image::from_buffer(
+                    &task.data,
+                    ImageType::Format(bevy::render::texture::ImageFormat::Basis),
+                    self.supported_compressed_formats,
+                    true, 
+                    ImageSampler::linear(), // TODO: mipmap trilinear?
+                    RenderAssetUsages::default(),
+                )
+                .unwrap();
+                return Some(comp_img);
+            } else {
+                assert!(false, "Not implemented");
+            }
+        }
+        return None;
     }
 }
 
 pub fn update_render_to_texture(
     mut tasks: ResMut<RenderToTextureTasks>,
-    mut assets: ResMut<Assets<Mesh>>,
     mut cameras: Query<&mut Camera>,
     mut commands: Commands,
-    mut images: ResMut<Assets<Image>>,
     mut image_exports: ResMut<Assets<ImageExportSource>>,
+    extractable_images: Res<ExtractableImages>,
 ) {
     // remove finished tasks
     tasks
         .tasks
-        .retain(|task| task.stage != RenderToTextureTaskStage::Done);
-    assert!(
-        tasks.tasks.len() <= 1,
-        "Currently only one render to texture at a time is supported"
-    );
-    for task in tasks.tasks.iter_mut() {
-        if task.stage == RenderToTextureTaskStage::Initial {
-            if let Ok(mut cam) = cameras.get_mut(task.camera.unwrap()) {
-                // TODO: this isn't always transferred in time...  How to make sure the camera is turned on in time?
-                println!("Activating camera");
-                cam.is_active = true;
-                task.stage = RenderToTextureTaskStage::Ready;
+        .retain(|_, task| task.stage != RenderToTextureTaskStage::ResultReceived);
 
-                commands.spawn(ImageExportBundle {
-                    source: image_exports.add(ImageExportSource(task.target.clone())),
-                    settings: crate::gpu2cpu::ImageExportSettings::default(),
-                });
+    if extractable_images.raw.len() > 0 {
+        for (_, task) in tasks.tasks.iter_mut() {
+            if task.stage == RenderToTextureTaskStage::ReadyForRendering {
+                println!("Copy");
+                task.data = extractable_images.raw.clone(); // TODO: avoid cloning
+
+                let mut writer =
+                    std::io::BufWriter::new(std::fs::File::create("test.png").unwrap());
+                image::write_buffer_with_format(
+                    &mut writer,
+                    &task.data,
+                    task.width,
+                    task.height,
+                    image::ColorType::Rgba8,
+                    image::ImageFormat::Png,
+                )
+                .unwrap();
+
+                // TODO: extractable_images.raw.clear();
+                task.stage = RenderToTextureTaskStage::RenderedResultCopiedBack;
             }
         }
+    }
+
+    let mut started_rendering = false;
+    for (_, task) in tasks.tasks.iter_mut() {
+        match task.stage {
+            RenderToTextureTaskStage::ReadyForRendering => {}
+            RenderToTextureTaskStage::RenderedResultCopiedBack => {
+                commands.entity(task.camera.unwrap()).despawn_recursive();
+                // commands.remove(task.target);
+                if task.should_compress {
+                    // TODO: do this in a separate thread / TaskPool
+                    let prev_len = task.data.len();
+                    task.data = compress_to_basis_raw(&task.data, task.size(), task.is_srgb);
+                    println!(
+                        "Compressing... {} -> {} Kb",
+                        prev_len / 1024,
+                        task.data.len() / 1024
+                    );
+                    task.stage = RenderToTextureTaskStage::ReadyForReading;
+                } else {
+                    task.stage = RenderToTextureTaskStage::ReadyForReading;
+                }
+            }
+            RenderToTextureTaskStage::Initialized => {
+                if let Ok(mut cam) = cameras.get_mut(task.camera.unwrap()) {
+                    assert!(
+                        !started_rendering,
+                        "Currently only one render to texture at a time is supported"
+                    );
+
+                    cam.is_active = true;
+                    task.stage = RenderToTextureTaskStage::ReadyForRendering;
+
+                    commands.spawn(ImageExportBundle {
+                        source: image_exports.add(ImageExportSource {
+                            image: task.target.clone(),
+                        }),
+                        settings: crate::gpu2cpu::ImageExportSettings::default(),
+                    });
+                    started_rendering = true;
+                }
+            }
+            _ => {}
+        };
     }
 }
 
@@ -113,12 +224,18 @@ pub fn create_render_texture(
     commands: &mut Commands,
     images: &mut ResMut<Assets<Image>>,
     layer: u8,
-) -> (Handle<Image>, RenderLayers, Entity) {
+    direct_render: bool,
+) -> (Handle<Image>, Entity) {
     let size = Extent3d {
         width,
         height,
         ..default()
     };
+
+    let mut usage = TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC;
+    if direct_render {
+        usage |= TextureUsages::TEXTURE_BINDING;
+    }
 
     // This is the texture that will be rendered to.
     let mut image = Image {
@@ -126,13 +243,14 @@ pub fn create_render_texture(
             label: None,
             size,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: if direct_render {
+                TextureFormat::Bgra8UnormSrgb
+            } else {
+                TextureFormat::Rgba8UnormSrgb
+            },
             mip_level_count: 1,
             sample_count: 1,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::COPY_SRC
-                | TextureUsages::RENDER_ATTACHMENT,
+            usage,
             view_formats: &[],
         },
         ..default()
@@ -142,9 +260,6 @@ pub fn create_render_texture(
     image.resize(size);
 
     let image_handle = images.add(image);
-
-    // This specifies the layer used for the first pass, which will be attached to the first pass camera and cube.
-    let first_pass_layer = RenderLayers::layer(layer);
 
     let camera_id = commands
         .spawn((
@@ -159,9 +274,9 @@ pub fn create_render_texture(
                 },
                 ..default()
             },
-            first_pass_layer,
+            RenderLayers::layer(layer),
         ))
         .id();
 
-    return (image_handle, first_pass_layer, camera_id);
+    return (image_handle, camera_id);
 }

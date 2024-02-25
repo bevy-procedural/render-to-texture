@@ -16,6 +16,7 @@ bevy = { version = "0.13.0", default-features = false, features = [
     "tonemapping_luts"
 ] }
 render-to-texture = { path = "../" }
+bevy_panorbit_camera = "0.14.0"
 
 [lints]
 workspace = true

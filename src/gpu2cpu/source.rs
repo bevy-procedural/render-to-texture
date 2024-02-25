@@ -11,11 +11,13 @@ use bevy::{
 };
 
 #[derive(Asset, Clone, Default, Reflect)]
-pub struct ImageExportSource(pub Handle<Image>);
+pub struct ImageExportSource {
+    pub image: Handle<Image>,
+}
 
 impl From<Handle<Image>> for ImageExportSource {
     fn from(value: Handle<Image>) -> Self {
-        Self(value)
+        Self { image: value }
     }
 }
 
@@ -39,7 +41,7 @@ impl RenderAsset for ImageExportSource {
         self,
         (device, images): &mut SystemParamItem<Self::Param>,
     ) -> Result<Self::PreparedAsset, PrepareAssetError<Self>> {
-        let gpu_image = images.get(&self.0).unwrap();
+        let gpu_image = images.get(&self.image).unwrap();
 
         let size = gpu_image.texture.size();
         let format = &gpu_image.texture_format;
@@ -57,7 +59,7 @@ impl RenderAsset for ImageExportSource {
                 usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
                 mapped_at_creation: false,
             }),
-            source_handle: self.0,
+            source_handle: self.image,
             source_size,
             bytes_per_row,
             padded_bytes_per_row,

@@ -36,17 +36,11 @@ pub struct ImageExportBundle {
     pub settings: ImageExportSettings,
 }
 
-#[derive(Resource, Clone, Deref, Default, ExtractResource, Reflect)]
+#[derive(Resource, Clone, Deref, Default, Reflect)]
 pub struct ExtractableImages {
     pub raw: Vec<u8>,
 }
 
-pub fn sync_images(app_world: &mut World, sub_app: &mut App) {
-    let mut chunks = app_world.resource_mut::<ExtractableImages>();
-    let sub_app_world = sub_app.world.resource::<ExtractableImages>();
-    println!("syncing chunks {}", sub_app_world.raw.len());
-    chunks.raw = sub_app_world.raw.clone();
-}
 
 pub fn store_in_img(
     export_bundles: Query<(&Handle<ImageExportSource>, &ImageExportSettings)>,
@@ -59,6 +53,7 @@ pub fn store_in_img(
 
     for (source_handle, settings) in &export_bundles {
         if let Some(gpu_source) = sources.get(source_handle) {
+           
             let mut image_bytes = {
                 let slice = gpu_source.buffer.slice(..);
                 {

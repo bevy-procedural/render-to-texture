@@ -1,8 +1,10 @@
 use bevy::{
     prelude::*,
+    render::view::RenderLayers,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
     window::WindowResolution,
 };
+use bevy_panorbit_camera::*;
 use render_to_texture::*;
 use std::f32::consts::PI;
 
@@ -18,10 +20,38 @@ pub fn main() {
         }),
         ..default()
     }))
-    .add_plugins(RenderToTexturePlugin)
+    .add_plugins((PanOrbitCameraPlugin, RenderToTexturePlugin))
     .add_systems(Startup, setup_scene)
-    .add_systems(Update, (bevy::window::close_on_esc,))
+    .add_systems(Update, (wait_for_texture, bevy::window::close_on_esc))
     .run();
+}
+
+fn wait_for_texture(
+    mut commands: Commands,
+    mut render_to_texture_tasks: ResMut<RenderToTextureTasks>,
+    mut images: ResMut<Assets<Image>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    if let Some(image) = render_to_texture_tasks.image("default") {
+        let m = meshes.add(Mesh::from(Plane3d::new(Vec3::new(0.0, 1.0, 0.0))));
+        let mm = materials.add(StandardMaterial {
+            base_color_texture: Some(images.add(image)),
+            ..default()
+        });
+
+        for x in -15..15 {
+            for z in -20..3 {
+                commands.spawn((PbrBundle {
+                    mesh: m.clone(),
+                    material: mm.clone(),
+                    transform: Transform::from_translation(Vec3::new(x as f32 * 2.0, 0.0, z as f32 * 2.0)),
+                    ..default()
+                },));
+            }
+        }
+       
+    }
 }
 
 fn setup_scene(
@@ -32,7 +62,14 @@ fn setup_scene(
     mut materials2: ResMut<Assets<ColorMaterial>>,
     mut render_to_texture_tasks: ResMut<RenderToTextureTasks>,
 ) {
-    let first_pass_layer = render_to_texture_tasks.add(512, 512, &mut commands, &mut images);
+    render_to_texture_tasks.add(
+        "default".to_string(),
+        512,
+        512,
+        true,
+        &mut commands,
+        &mut images,
+    );
 
     commands.spawn((
         MaterialMesh2dBundle {
@@ -41,11 +78,10 @@ fn setup_scene(
             transform: Transform::from_xyz(-0.6, 0.7, 1.4),
             ..default()
         },
-        first_pass_layer,
+        RenderLayers::layer(1),
     ));
 
-    /*let (image_handle, first_pass_layer, _) =
-        create_render_texture(512, 512, &mut commands, &mut images, 1);
+    /*let (image_handle, _) = create_render_texture(512, 512, &mut commands, &mut images, 1);
 
     commands.spawn((
         MaterialMesh2dBundle {
@@ -54,7 +90,7 @@ fn setup_scene(
             transform: Transform::from_xyz(-0.6, 0.7, 1.4),
             ..default()
         },
-        first_pass_layer,
+        RenderLayers::layer(1),
     ));
 
     commands.spawn((PbrBundle {
@@ -93,8 +129,11 @@ fn setup_scene(
         ..Default::default()
     });
 
-    commands.spawn((Camera3dBundle {
-        transform: Transform::from_xyz(2.0, 3.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
-        ..default()
-    },));
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(2.0, 3.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        },
+        PanOrbitCamera::default(),
+    ));
 }
