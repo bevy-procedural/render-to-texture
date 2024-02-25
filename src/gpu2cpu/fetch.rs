@@ -36,20 +36,26 @@ pub struct ImageExportBundle {
     pub settings: ImageExportSettings,
 }
 
-#[derive(Resource, Clone, Deref, ExtractResource, Reflect)]
-pub struct ExtractableImage(pub Vec<u8>);
+#[derive(Resource, Clone, Deref, Default, ExtractResource, Reflect)]
+pub struct ExtractableImages {
+    pub raw: Vec<u8>,
+}
+
+pub fn sync_images(app_world: &mut World, sub_app: &mut App) {
+    let mut chunks = app_world.resource_mut::<ExtractableImages>();
+    let sub_app_world = sub_app.world.resource::<ExtractableImages>();
+    println!("syncing chunks {}", sub_app_world.raw.len());
+    chunks.raw = sub_app_world.raw.clone();
+}
 
 pub fn store_in_img(
     export_bundles: Query<(&Handle<ImageExportSource>, &ImageExportSettings)>,
     sources: Res<RenderAssets<ImageExportSource>>,
     render_device: Res<RenderDevice>,
-    mut extractable_image: ResMut<ExtractableImage>,
-    mut gpu_images: ResMut<RenderAssets<Image>>,
+    mut extractable_image: ResMut<ExtractableImages>,
+    //mut gpu_images: ResMut<RenderAssets<Image>>,
 ) {
-    /*if extractable_image.0.len() != 0 {
-        return;
-    }
-    println!("Storing in img");*/
+    // TODO: don't copy the image data if it hasn't changed
 
     for (source_handle, settings) in &export_bundles {
         if let Some(gpu_source) = sources.get(source_handle) {
@@ -79,30 +85,26 @@ pub fn store_in_img(
                 }
                 image_bytes = unpadded_bytes;
             }
-            if extractable_image.0 != image_bytes {
-                extractable_image.0 = image_bytes.clone();
-                let gpu_image = gpu_images.get_mut(&gpu_source.source_handle).unwrap();
-
-                println!(
-                    "Saving {}  {}",
-                    image_bytes.len(),
-                    gpu_image.size.x * gpu_image.size.y
-                );
+            if extractable_image.raw != image_bytes {
+                extractable_image.raw = image_bytes.clone();
+                /*let gpu_image = gpu_images.get_mut(&gpu_source.source_handle).unwrap();
                 let width = gpu_image.size.x as u32;
                 let height = gpu_image.size.y as u32;
 
                 std::thread::spawn(move || {
                     println!("Saving {}  {}", image_bytes.len(), width * height);
-                    /*let compressed_basis_data =
+
+                    let compressed_basis_data =
                         compress_to_basis_raw(&image_bytes, UVec2::new(width, height), true);
 
-                    let mut file = std::fs::OpenOptions::new()
+                    /*
+                    /*let mut file = std::fs::OpenOptions::new()
                         .create(true)
                         .write(true)
                         .open("test.basis")
                         .unwrap();
                     use std::io::Write;
-                    file.write_all(&compressed_basis_data).unwrap();
+                    file.write_all(&compressed_basis_data).unwrap();*/
 
                     let mut writer =
                         std::io::BufWriter::new(std::fs::File::create("test.png").unwrap());
@@ -115,36 +117,8 @@ pub fn store_in_img(
                         image::ImageFormat::Png,
                     )
                     .unwrap();*/
-                });
+                });*/
             }
-
-            //let h = gpu_source.source_handle.clone();
-            // let src_img: &mut Image = images.get_mut(gpu_source.source_handle.clone()).unwrap();
-            // src_img.data = image_bytes;
-
-            //world.get_resource_mut::<FetchedImage>().unwrap().data = image_bytes;
-
-            /* println!(
-                "Saving {}  {}",
-                image_bytes.len(),
-                extractable_image.0.len()
-            );
-            extractable_image.0 = image_bytes.clone();*/
-
-            /*let mut writer = std::io::BufWriter::new(std::fs::File::create("test.png").unwrap());
-            image::write_buffer_with_format(
-                &mut writer,
-                &image_bytes,
-                gpu_image.size.y as u32,
-                gpu_image.size.x as u32,
-                image::ColorType::Rgba8,
-                image::ImageFormat::Png,
-            )
-            .unwrap();*/
-
-            //fetched.data = image_bytes;
-
-            //println!("Saving {}", image_bytes.len());
         }
     }
 }

@@ -1,12 +1,9 @@
 use bevy::{
-    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    pbr::{CascadeShadowConfigBuilder, ExtendedMaterial},
     prelude::*,
-    render::view::NoFrustumCulling,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
     window::WindowResolution,
 };
-use render_to_texture::{render::create_render_texture, *};
+use render_to_texture::*;
 use std::f32::consts::PI;
 
 pub fn main() {
@@ -21,6 +18,7 @@ pub fn main() {
         }),
         ..default()
     }))
+    .add_plugins(RenderToTexturePlugin)
     .add_systems(Startup, setup_scene)
     .add_systems(Update, (bevy::window::close_on_esc,))
     .run();
@@ -32,8 +30,21 @@ fn setup_scene(
     mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut materials2: ResMut<Assets<ColorMaterial>>,
+    mut render_to_texture_tasks: ResMut<RenderToTextureTasks>,
 ) {
-    let (image_handle, first_pass_layer, _) =
+    let first_pass_layer = render_to_texture_tasks.add(512, 512, &mut commands, &mut images);
+
+    commands.spawn((
+        MaterialMesh2dBundle {
+            mesh: Mesh2dHandle(meshes.add(RegularPolygon::new(100.0, 6))),
+            material: materials2.add(Color::RED),
+            transform: Transform::from_xyz(-0.6, 0.7, 1.4),
+            ..default()
+        },
+        first_pass_layer,
+    ));
+
+    /*let (image_handle, first_pass_layer, _) =
         create_render_texture(512, 512, &mut commands, &mut images, 1);
 
     commands.spawn((
@@ -54,7 +65,7 @@ fn setup_scene(
         }),
         transform: Transform::from_scale(Vec3::splat(2.0)),
         ..default()
-    },));
+    },));*/
 
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(Cylinder::default())),

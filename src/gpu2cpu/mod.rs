@@ -1,22 +1,22 @@
 // based on https://github.com/paulkre/bevy_image_export/blob/main/src/node.rs
 
-use crate::gpu2cpu::fetch::ExtractableImage;
+use crate::gpu2cpu::fetch::ExtractableImages;
 use bevy::{
     prelude::*,
     render::{
         camera::CameraUpdateSystem, extract_component::ExtractComponentPlugin,
         extract_resource::ExtractResourcePlugin, graph::CameraDriverLabel,
-        render_asset::RenderAssetPlugin, render_graph::RenderGraph, Render, RenderApp, RenderSet,
+        render_asset::RenderAssetPlugin, render_graph::RenderGraph, Extract, Render, RenderApp,
+        RenderSet,
     },
 };
-pub use fetch::ImageExportBundle;
-use fetch::{store_in_img, ImageExportSettings};
+use fetch::store_in_img;
+pub use fetch::{ImageExportBundle, ImageExportSettings};
 use node::{ImageExportNode, ImageExportRenderLabel};
 pub use source::ImageExportSource;
 mod fetch;
 mod node;
 mod source;
-
 
 /// Plugin enabling the generation of image sequences.
 #[derive(Default)]
@@ -29,11 +29,27 @@ pub enum ImageExportSystems {
 }
 
 fn setup(mut commands: Commands) {
-    commands.insert_resource(ExtractableImage(vec![]));
+    commands.insert_resource(ExtractableImages::default());
 }
 
-fn check_vec_len(extracted: Res<ExtractableImage>) {
-    println!("Extracted image data: {:?}", extracted.0);
+fn check_vec_len(extracted: Res<ExtractableImages>) {
+    //   println!("Extracted image data: {:?}", extracted.0);
+}
+
+pub fn sync_images2(
+    main_world: Extract<Res<ExtractableImages>>,
+    render_world: Res<ExtractableImages>,
+) {
+    // mut extractable_image: ResMut<ExtractableImages>
+    // app_world: &mut World,
+    /*let mut images = app_world.resource_mut::<ExtractableImages>();
+    println!("{} ", images.raw.len());*/
+
+    //main_world.raw = render_world.raw.clone();
+
+    println!("{} {}", main_world.raw.len(), render_world.raw.len());
+
+    //let render_app = app.sub_app_mut(RenderApp);
 }
 
 impl Plugin for ImageExportPlugin {
@@ -49,25 +65,31 @@ impl Plugin for ImageExportPlugin {
         .register_type::<ImageExportSource>()
         .init_asset::<ImageExportSource>()
         .register_asset_reflect::<ImageExportSource>()
-        //.insert_resource(ExtractedImages::default())
-        .register_type::<ExtractableImage>()
-        .add_plugins(ExtractResourcePlugin::<ExtractableImage>::default())
+        .register_type::<ExtractableImages>()
+        .insert_resource(ExtractableImages::default())
+        //.add_plugins(ExtractResourcePlugin::<ExtractableImages>::default())
         .add_systems(Startup, setup)
         .add_plugins((
             RenderAssetPlugin::<ImageExportSource>::default(),
             ExtractComponentPlugin::<ImageExportSettings>::default(),
         ))
         .add_systems(PostUpdate, apply_deferred.in_set(SetupImageExportFlush))
-        .add_systems(PreUpdate, check_vec_len);
+        //.add_systems(PreUpdate, check_vec_len)
+        ;
 
         let render_app = app.sub_app_mut(RenderApp);
 
-        render_app.add_systems(
-            Render,
-            store_in_img
-                .after(RenderSet::Render)
-                .before(RenderSet::Cleanup),
-        );
+        // app.insert_sub_app(RenderApp, SubApp::new(sub_app, sync_chunks));
+
+        render_app
+            .init_resource::<ExtractableImages>()
+            .add_systems(ExtractSchedule, sync_images2)
+            .add_systems(
+                Render,
+                store_in_img
+                    .after(RenderSet::Render)
+                    .before(RenderSet::Cleanup),
+            );
 
         let mut graph = render_app.world.get_resource_mut::<RenderGraph>().unwrap();
         graph.add_node(ImageExportRenderLabel, ImageExportNode);

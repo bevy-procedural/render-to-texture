@@ -1,6 +1,6 @@
 // based on https://github.com/paulkre/bevy_image_export/blob/main/src/node.rs
 
-use super::{fetch::ExtractableImage, source::ImageExportSource};
+use super::source::ImageExportSource;
 use bevy::{
     prelude::*,
     render::{
@@ -14,7 +14,6 @@ use bevy::{
 #[derive(Debug, Hash, PartialEq, Eq, Clone, RenderLabel)]
 pub struct ImageExportRenderLabel;
 
-
 pub struct ImageExportNode;
 impl Node for ImageExportNode {
     fn run(
@@ -24,13 +23,7 @@ impl Node for ImageExportNode {
         world: &World,
     ) -> Result<(), NodeRunError> {
         for (_, source) in world.resource::<RenderAssets<ImageExportSource>>().iter() {
-            /*
-            if world.get_resource::<ExtractableImage>().unwrap().0.len() > 0 {
-                continue;
-            }
-            println!("Copying image data from GPU to CPU");
-            */
-
+            // TODO: only copy when the source has changed
             if let Some(gpu_image) = world
                 .resource::<RenderAssets<Image>>()
                 .get(&source.source_handle)
