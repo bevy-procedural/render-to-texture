@@ -40,7 +40,7 @@ pub fn sync_images(mut render_world_data: ResMut<ExtractableImages>, mut world: 
         return;
     }
 
-    println!("sync_images");
+    // println!("sync_images");
 
     main_world_data.raw = render_world_data.raw.clone();
     render_world_data.raw.clear();

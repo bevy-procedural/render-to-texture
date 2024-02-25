@@ -46,10 +46,8 @@ pub fn store_in_img(
     sources: Res<RenderAssets<ImageExportSource>>,
     render_device: Res<RenderDevice>,
     mut extractable_image: ResMut<ExtractableImages>,
-    mut gpu_images: ResMut<RenderAssets<Image>>,
+    //mut gpu_images: ResMut<RenderAssets<Image>>,
 ) {
-    // TODO: don't copy the image data if it hasn't changed
-
     let mut copied = false;
     for (source_handle, _) in &export_bundles {
         if let Some(gpu_source) = sources.get(source_handle) {
@@ -83,10 +81,10 @@ pub fn store_in_img(
             if extractable_image.refresh && extractable_image.raw != image_bytes {
                 assert!(copied == false, "Image data was copied twice");
                 extractable_image.raw = image_bytes.clone();
-                println!("Image data copied");
+                //println!("Image data copied");
                 copied = true;
 
-                let gpu_image = gpu_images.get_mut(&gpu_source.source_handle).unwrap();
+                /*let gpu_image = gpu_images.get_mut(&gpu_source.source_handle).unwrap();
                 let width = gpu_image.size.x as u32;
                 let height = gpu_image.size.y as u32;
                 let mut writer =
@@ -99,7 +97,7 @@ pub fn store_in_img(
                     image::ColorType::Rgba8,
                     image::ImageFormat::Png,
                 )
-                .unwrap();
+                .unwrap();*/
             }
         }
     }
