@@ -89,7 +89,6 @@ impl RenderToTextureTask {
                 || self.stage == RenderToTextureTaskStage::ResultReceived,
             "Task not done"
         );
-        println!("Removing task");
         if let Some(c) = self.camera {
             commands.entity(c).despawn_recursive();
             self.camera = None;
