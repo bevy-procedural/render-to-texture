@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-bevy = { version = "0.13.0", default-features = false, features = [
+bevy = { version = "^0.13.1", default-features = false, features = [
     "bevy_winit",
     "bevy_render",
     "bevy_asset",
@@ -16,8 +16,8 @@ bevy = { version = "0.13.0", default-features = false, features = [
     "tonemapping_luts"
 ] }
 render-to-texture = { path = "../" }
-bevy_panorbit_camera = "0.14.0"
-rand = "0.8.5"
+bevy_panorbit_camera = "^0.17.0"
+rand = "^0.8.5"
 
 [lints]
 workspace = true
