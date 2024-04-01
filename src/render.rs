@@ -12,7 +12,6 @@ use bevy::{
         texture::{CompressedImageFormats, ImageSampler, ImageType},
         view::RenderLayers,
     },
-    tasks,
     utils::HashMap,
 };
 
