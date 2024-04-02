@@ -1,7 +1,4 @@
-use crate::{
-    compress::compress_to_basis_raw,
-    gpu2cpu::{ExtractableImages, ImageExportBundle, ImageExportSource},
-};
+use crate::gpu2cpu::{ExtractableImages, ImageExportBundle, ImageExportSource};
 use bevy::{
     prelude::*,
     render::{
@@ -245,11 +242,23 @@ pub fn update_render_to_texture(
             RenderToTextureTaskStage::RenderedResultCopiedBack => {
                 // commands.remove(task.target);
                 if task.should_compress {
-                    // TODO: do this in a separate thread / TaskPool
-                    let _prev_len = task.data.len();
-                    task.data = compress_to_basis_raw(&task.data, task.size(), task.is_srgb);
-                    // println!("{} -> {} Kb", _prev_len / 1024, task.data.len() / 1024);
-                    task.stage = RenderToTextureTaskStage::ReadyForReading;
+                    // only if feature is enabled
+                    #[cfg(feature = "compress")]
+                    {
+                        // TODO: do this in a separate thread / TaskPool
+                        let _prev_len = task.data.len();
+                        task.data = crate::compress::compress_to_basis_raw(
+                            &task.data,
+                            task.size(),
+                            task.is_srgb,
+                        );
+                        // println!("{} -> {} Kb", _prev_len / 1024, task.data.len() / 1024);
+                        task.stage = RenderToTextureTaskStage::ReadyForReading;
+                    }
+                    #[cfg(not(feature = "compress"))]
+                    {
+                        panic!("Basis compression is not enabled");
+                    }
                 } else {
                     task.stage = RenderToTextureTaskStage::ReadyForReading;
                 }

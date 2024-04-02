@@ -43,26 +43,40 @@ workspace = true
 
 [dependencies]
 bevy = { version = "^0.13.1", default-features = false, features = [
-    "basis-universal",
     "bevy_render",
     "bevy_asset",
     "bevy_core_pipeline",
 ] }
 futures-lite = "^2.3.0"
 futures = "^0.3.30"
-basis-universal = "^0.3.1"
+basis-universal = { version = "^0.3.1", optional = true }
+
+[features]
+default = []
+compress = ["dep:basis-universal", "bevy/basis-universal"]
 
 [[example]]
 name = "compressed"
 path = "examples/compressed.rs"
 doc-scrape-examples = true
-required-features = ["bevy/bevy_sprite", "bevy/bevy_pbr", "bevy/bevy_winit", "bevy/tonemapping_luts"]
+required-features = [
+    "bevy/bevy_sprite",
+    "bevy/bevy_pbr",
+    "bevy/bevy_winit",
+    "bevy/tonemapping_luts",
+    "compress"
+]
 
 [[example]]
 name = "continuous"
 path = "examples/continuous.rs"
 doc-scrape-examples = true
-required-features = ["bevy/bevy_sprite", "bevy/bevy_pbr", "bevy/bevy_winit", "bevy/tonemapping_luts"]
+required-features = [
+    "bevy/bevy_sprite",
+    "bevy/bevy_pbr",
+    "bevy/bevy_winit",
+    "bevy/tonemapping_luts",
+]
 
 [profile.fast-dev]
 inherits = "dev"

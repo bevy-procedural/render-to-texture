@@ -2,9 +2,12 @@
 
 use bevy::prelude::*;
 pub use render::{create_render_texture, RenderToTextureTasks};
-mod compress;
 mod gpu2cpu;
 mod render;
+
+#[cfg(feature = "compress")]
+mod compress;
+
 
 pub struct RenderToTexturePlugin;
 
