@@ -51,7 +51,6 @@ bevy = { version = "^0.13.1", default-features = false, features = [
 futures-lite = "^2.3.0"
 futures = "^0.3.30"
 basis-universal = "^0.3.1"
-image = "^0.25.1"
 
 [[example]]
 name = "compressed"
@@ -65,12 +64,17 @@ path = "examples/continuous.rs"
 doc-scrape-examples = true
 required-features = ["bevy/bevy_sprite", "bevy/bevy_pbr", "bevy/bevy_winit", "bevy/tonemapping_luts"]
 
+[profile.fast-dev]
+inherits = "dev"
+opt-level = 1
+
 # Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.fast-dev.package."*"]
 inherits = "dev"
 opt-level = 3
 
-[profile.fast-dev.package.gfx-backend-vulkan]
-inherits = "dev"
-opt-level = 3
-debug-assertions = false
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = "thin"
+codegen-units = 1
